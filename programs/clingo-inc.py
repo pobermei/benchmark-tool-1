@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import gringo, sys, json, signal, threading, argparse, StringIO
+import clingo, sys, json, signal, threading, argparse, StringIO
 
 class Solver:
     def __init__(self, args):
@@ -52,10 +52,10 @@ class Solver:
             return False
         if self.__args.imin is not None and self.__step < self.__args.imin:
             return True
-        return ret != gringo.SolveResult.SAT
+        return ret != clingo.SolveResult.SAT
 
     def solve(self):
-        ret = gringo.SolveResult.UNKNOWN
+        ret = clingo.SolveResult.UNKNOWN
         sys.stdout.write("[\n")
         sys.stdout.flush()
         while self.__continue(ret):
@@ -83,32 +83,32 @@ class Solver:
 class MultiShot(Solver):
     def __init__(self, script_args, control_args):
         Solver.__init__(self, script_args)
-        self.__prg = gringo.Control(control_args)
+        self.__prg = clingo.Control(control_args)
         self.add_const(self.__prg)
         for f in script_args.file:
            self.__prg.load(f)
 
         self.__prg.add("check", ["t"], "#external query(t).")
-        self.__future = None
+        self.__handle = None
 
     def start(self, step):
         parts = []
         parts.append(("check", [step]))
         if step > 0:
-            self.__prg.release_external(gringo.Fun("query", [step-1]))
+            self.__prg.release_external(clingo.Function("query", [step-1]))
             parts.append(("step", [step]))
             self.__prg.cleanup_domains()
         else:
             parts.append(("base", []))
         self.__prg.ground(parts)
-        self.__prg.assign_external(gringo.Fun("query", [step]), True)
-        self.__future = self.__prg.solve_async(on_finish=self.on_finish)
+        self.__prg.assign_external(clingo.Function("query", [step]), True)
+        self.__handle = self.__prg.solve(async=True, on_finish=self.on_finish)
 
     def get(self):
-        return self.__future.get()
+        return self.__handle.get()
 
     def cancel(self):
-        self.__future.cancel()
+        self.__handle.cancel()
 
     def stats(self):
         return self.__prg.stats
@@ -119,11 +119,11 @@ class SingleShot(Solver):
         self.__script_args = script_args
         self.__control_args = control_args
         self.__prg = None
-        self.__future = None
+        self.__handle = None
         self.__step = 0
 
     def start(self, step):
-        self.__prg = gringo.Control(self.__control_args)
+        self.__prg = clingo.Control(self.__control_args)
         self.add_const(self.__prg)
         for f in self.__script_args.file:
             self.__prg.load(f)
@@ -138,13 +138,13 @@ class SingleShot(Solver):
             else:
                 parts.append(("base", []))
             self.__prg.ground(parts)
-        self.__future = self.__prg.solve_async(on_finish=self.on_finish)
+        self.__handle = self.__prg.solve(async=True, on_finish=self.on_finish)
 
     def get(self):
-        return self.__future.get()
+        return self.__handle.get()
 
     def cancel(self):
-        self.__future.cancel()
+        self.__handle.cancel()
 
     def stats(self):
         stats = self.__prg.stats

@@ -1,0 +1,49 @@
+<runscript output="output">
+        <machine name="houat" cpu="8xE5520@2.27GHz" memory="24GB"/>
+
+        <!-- Run template -->
+        <config name="seq-generic" template="templates/seq-generic.sh"/>
+
+        <!-- Systems config -->
+        <!-- <system name="dispatch" version="1" measures="clasp" config="seq-generic"> -->
+        <!--         <!-\- optionally allows for tagging settings -\-> -->
+        <!--         <setting name="boolean-XY"  cmdline="-\-stats 1 /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding-XY.lp -c horizon=50"/> -->
+        <!--         <!-\- <setting name="vsids"    cmdline="-\\-stats -\\-heu=vsids 1"/> -\-> -->
+        <!-- </system> -->
+
+        <system name="dispatch" version="1" measures="clasp" config="seq-generic">
+                <!-- optionally allows for tagging settings -->
+                <setting name="boolean-XY"  cmdline="--stats 1 /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding-XY.lp -c horizon=50"/>
+                <!-- <setting name="vsids"    cmdline="-\-stats -\-heu=vsids 1"/> -->
+        </system>
+
+        <!-- Job parameters -->
+        <seqjob name="seq-generic" timeout="1800" runs="1" parallel="4"/>
+
+        <!-- Benchmark sets -->
+        <benchmark name="moo-standard">
+          <folder path="custom/instances/moo/standard/rectangles/2x3x5/" glob="*.lp">
+            <ignore prefix="50sc"/>
+            <ignore prefix="75sc"/>
+            <ignore prefix="100sc"/>
+          </folder>
+        </benchmark>
+
+        <benchmark name="moo-standard-selection">
+                <folder path="custom/instances/moo/standard/rectangles/4x5x8/" glob="*N1.lp">
+                </folder>
+        </benchmark>
+
+        <!-- Test run projects -->
+        <project name="moo-standard" job="seq-generic">
+          <runtag machine="houat" benchmark="moo-standard" tag="*all*"/>
+          <runtag machine="houat" benchmark="moo-standard-selection" tag="*all*"/>
+          <!-- <runtag machine="houat" benchmark="seq-suite" tag="default"/> -->
+        </project>
+
+        <!-- <project name="moo-selection" job="seq-generic"> -->
+        <!--   <runtag machine="houat" benchmark="moo-standard-selection" tag="*all*"/> -->
+        <!--   <!-\- <runtag machine="houat" benchmark="moo-standard-selection" tag="*all*"/> -\-> -->
+        <!--   <!-\- <runtag machine="houat" benchmark="seq-suite" tag="default"/> -\-> -->
+        <!-- </project> -->
+</runscript>

@@ -12,7 +12,7 @@ MASK=`qstat -f $ID | python {run.root}/templates/mask.py`
 TF=`mktemp -p .`
 $CAT "{run.file}" > $TF 
 
-[[ -e .finished ]] || taskset $MASK  "{run.root}/programs/runsolver-3.3.3" \
+[[ -e .finished ]] || taskset $MASK  "{run.root}/programs/runsolver" \
 	-M 100000 \
 	-w runsolver.watcher \
 	-o runsolver.solver \

@@ -11,6 +11,7 @@ import codecs
 
 clasp_re = {
     "models"      : ("float", re.compile(r"^(c )?Models[ ]*:[ ]*(?P<val>[0-9]+)\+?[ ]*$")),
+    "calls"       : ("float", re.compile(r"^(c )?Calls[ ]*:[ ]*(?P<val>[0-9]+)\+?[ ]*$")),
     "choices"     : ("float", re.compile(r"^(c )?Choices[ ]*:[ ]*(?P<val>[0-9]+)\+?[ ]*$")),
     "time"        : ("float", re.compile(r"^Real time \(s\): (?P<val>[0-9]+(\.[0-9]+)?)$")),
     "conflicts"   : ("float", re.compile(r"^(c )?Conflicts[ ]*:[ ]*(?P<val>[0-9]+)\+?[ ]*$")),

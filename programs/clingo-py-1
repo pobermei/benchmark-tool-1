@@ -1,0 +1,7 @@
+#!/bin/bash
+
+PYTHON=python
+export PYTHONPATH=./lib/python/2.7
+
+exec "${PYTHON}" "$(dirname $0)/clingo.py" "${@}" 2> solver.err
+

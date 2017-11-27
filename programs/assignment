@@ -1,0 +1,83 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""Computes an assignment for an asprilo instance and saves it as file.
+
+"""
+import os
+import sys
+import argparse
+from multiprocessing import Process, Manager
+import clingo
+
+LAST_ASSIGNMENT = None
+
+def on_model(model):
+    """Solve on_model callback."""
+    global LAST_ASSIGNMENT
+    # print "Found model:\n" + str(model.symbols(atoms=True))
+    LAST_ASSIGNMENT[:] = []
+    LAST_ASSIGNMENT.extend([str(atm) for atm in model.symbols(atoms=True) if atm.name == 'assign'])
+
+
+def assign(args, enc_path, last_asg):
+    """Computes assignment."""
+    prg = clingo.Control(['--opt-mode=opt', '--opt-strat=usc,k,0', '--opt-usc-shrink=inv',
+                          '-t {0}'.format(args.threads)])
+    global LAST_ASSIGNMENT
+    LAST_ASSIGNMENT = last_asg
+    prg.load(args.instance_path)
+    prg.ground([("base", [])])
+    prg.load(enc_path)
+    prg.ground([("base", [])])
+    try:
+        prg.solve(on_model=on_model)
+    except RuntimeError as err:
+        print "Caught Runtime Error: {}".format(err)
+    finally:
+        prg.interrupt()
+
+def main():
+    """Main."""
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('instance_path', type=str, help="Path to instance file")
+    arg_parser.add_argument("-t", "--threads", type=int, default=1,
+                            help="run clingo with THREADS threads (default: %(default)s)")
+    arg_parser.add_argument("-a", "--dom-a", action='store_true',
+                            help="Assignment for A (and B and C) domain (default: %(default)s)")
+    arg_parser.add_argument("--to", "--timeout", dest='timeout', type=int, default=99999,
+                            help="Timeout in seconds (default: %(default)s)")
+    args = arg_parser.parse_args()
+    if args.dom_a:
+        enc_rel_path = '../custom/encodings/control/assign-q.lp'
+        file_suffix = '__asg-a'
+    else:
+        enc_rel_path = '../custom/encodings/control/assign.lp'
+        file_suffix = '__asg-m'
+    enc_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), enc_rel_path)
+    print "Instance path: " + args.instance_path
+    print "Assignment encoding path: " + enc_path
+    print "Timeout after {} seconds".format(args.timeout)
+    last_asg = Manager().list()
+    proc = Process(target=assign, args=(args, enc_path, last_asg,))
+    proc.daemon = True
+    proc.start()
+    proc.join(args.timeout)
+    print "unblock"
+    if proc.is_alive():
+        print "Timeout!"
+        proc.terminate()
+        print "Terminated!"
+    try:
+        assignment = '.\n'.join(sorted([str(atm) for atm in last_asg])) + "."
+        print "Assignment: " + assignment
+        assignment_path = args.instance_path + file_suffix
+        with open(assignment_path, "w") as ofile:
+            ofile.write(assignment)
+        print "Written to file: " + assignment_path
+    except IOError as err:
+        print "Error writing to {}: {}".format(assignment_path, err)
+    except RuntimeError as err:
+        print "Caught Runtime Error: {}".format(err)
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -12,9 +12,9 @@ if __name__ == '__main__':
     usage  = "usage: %prog [options] <runscript>"
     parser = optparse.OptionParser(usage=usage)
     parser.add_option("-e", "--exclude", action="store_true", dest="exclude", default=False, help="exclude finished runs")
-    
+
     opts, files = parser.parse_args(sys.argv[1:])
-    
+
     if len(files) == 1:
         fileName = files[0]
     else:

@@ -1,0 +1,61 @@
+#!/bin/bash
+#
+# DISPATCH FOR BENCHMARK INVOCATION
+#
+#set -x
+# DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# SOLVER=${DIR}/clingo
+SOLVER=$(which clingo-banane)
+MODOPTS=''
+read inst_path
+FILEARGS=("${inst_path}")
+SCRIPTDIR=$(dirname $0)
+# instance=$(basename $path)
+
+#echo $instance
+
+numargs=$#
+while [[ "$#" -gt 0 ]];
+do
+    case "$1" in
+        # --enc)
+        #     echo "Encoding"
+        #     MODOPTS=("${MODOPTS[@]} $2")
+        #     shift 1
+        #     shift 1
+        #     ;;
+        --asg)
+            echo "Use Assignment"
+            FILEARGS=("${FILEARGS[@]} ${inst_path}__asg-$2")
+            shift 2
+            ;;
+        --hor)
+            echo "Use Horizon"
+            FILEARGS=("${FILEARGS[@]} ${inst_path}__hor-$2")
+            shift 2
+            ;;
+        --csp)
+            echo "Solver: ClingoCon"
+            SOLVER=$(which clingcon)
+            shift 1
+            ;;
+        --dl)
+            echo "Solver: ClingoDL"
+            SOLVER=$(which clingoDL)
+            shift 1
+            ;;
+        --assignment)
+            echo "Solver: Assignment Computation"
+            SOLVER="$SCRIPTDIR/assignment"
+            shift 1
+            ;;
+        *)
+            echo "Other Opt\n"
+            MODOPTS=("${MODOPTS[@]} $1")
+            shift 1
+            ;;
+    esac
+done
+echo "RUNNING: $SOLVER ${MODOPTS[@]} ${FILEARGS[@]}"
+$SOLVER ${MODOPTS[@]} ${FILEARGS[@]}
+#sh -c "echo \"${instance}\" | $SOLVER ${MODOPTS[@]} -"

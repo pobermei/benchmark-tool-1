@@ -1,0 +1,83 @@
+<!-- DOMAIN A Runscripts -->
+<runscript output="custom/output">
+        <machine name="houat" cpu="8xE5520@2.27GHz" memory="24GB"/>
+
+        <!-- Run template -->
+        <config name="seq-generic" template="templates/seq-generic-args.sh"/>
+        <!-- <config name="seq-generic" template="templates/seq-generic-direct.sh"/> -->
+
+        <!-- Systems config -->
+        <!-- <system name="dispatch" version="1" measures="clasp" config="seq-generic"> -->
+        <!--         <!-\- optionally allows for tagging settings -\-> -->
+        <!--         <setting name="boolean-XY"  cmdline="-\-stats 1 /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding-XY.lp -c horizon=50"/> -->
+        <!--         <!-\- <setting name="vsids"    cmdline="-\\-stats -\\-heu=vsids 1"/> -\-> -->
+        <!-- </system> -->
+
+        <system name="dispatch" version="1" measures="clasp" config="seq-generic">
+          <!-- optionally allows for tagging settings -->
+
+          <!-- Min horizon runs -->
+          <setting name="boolean"     tag="mh"       cmdline="      --stats /home/phil/dev/benchmark-tool/custom/encodings/abc/encoding-a.lp  --hor a"/>
+          <setting name="csp"         tag="mh"       cmdline="--csp --stats /home/phil/dev/benchmark-tool/custom/encodings/abc/encoding-a.clp --hor a"/>
+
+          <!-- Min horizon runs with assignment -->
+          <setting name="boolean_asg" tag="mha"      cmdline="      --stats /home/phil/dev/benchmark-tool/custom/encodings/abc/encoding-a.lp  /home/phil/dev/benchmark-tool/custom/encodings/control/control.lp --asg a --hor aa"/>
+          <setting name="csp_asg"     tag="mha"      cmdline="--csp --stats /home/phil/dev/benchmark-tool/custom/encodings/abc/encoding-a.clp /home/phil/dev/benchmark-tool/custom/encodings/control/control.lp --asg a --hor aa"/>
+
+
+          <!-- Horizon computation runs -->
+           <!-- ** Horizon for domain A -->
+          <setting name="horizon"     tag="hor"     cmdline="      --stats /home/phil/dev/benchmark-tool/custom/encodings/abc/encoding-a.ilp -t 4"/>
+          <!-- ** Horizon for domain A with assignment -->
+          <setting name="horizon-asg" tag="hor-asg" cmdline="      --stats /home/phil/dev/benchmark-tool/custom/encodings/abc/encoding-a.ilp /home/phil/dev/benchmark-tool/custom/encodings/control/control.ilp -t 4 --asg a"/>
+
+          <!-- Assignment computation runs -->
+          <setting name="assignment"  tag="asg"     cmdline="--assignment -a --to 300"/>
+
+        </system>
+
+        <!-- Job parameters -->
+        <seqjob name="assignment"  timeout="600"   runs="1" parallel="28"/>
+        <seqjob name="horizon"     timeout="3600"  runs="1" parallel="15"/>
+        <seqjob name="seq-generic" timeout="1800"  runs="1" parallel="28"/>
+
+        <!-- Benchmark sets -->
+        <benchmark name="moo">
+          <folder path="custom/instances/moo/structured/" glob="*.lp">
+            <ignore prefix="2x3x5"/>
+            <ignore prefix="4x5x8"/>
+          </folder>
+        </benchmark>
+
+        <benchmark name="tou">
+          <folder path="custom/instances/tou/structured/" glob="*.lp">
+            <ignore prefix="2x3x5"/>
+            <ignore prefix="4x5x8"/>
+          </folder>
+        </benchmark>
+
+        <!-- Test run projects -->
+        <!-- <project name="moo-mh" job="seq-generic"> -->
+        <!--   <runtag machine="houat" benchmark="moo" tag="mh"/> -->
+        <!-- </project> -->
+
+        <!-- <project name="moo-mha" job="seq-generic"> -->
+        <!--   <runtag machine="houat" benchmark="moo" tag="mha"/> -->
+        <!-- </project> -->
+
+        <!-- <project name="moo-hor" job="horizon"> -->
+        <!--   <!-\- <runtag machine="houat" benchmark="moo" tag="hor"/> -\-> -->
+	<!--   <runtag machine="houat" benchmark="moo" tag="hor-asg"/> -->
+        <!-- </project> -->
+
+        <project name="tou-hor" job="horizon">
+          <runtag machine="houat" benchmark="tou" tag="hor"/>
+	  <!-- <runtag machine="houat" benchmark="tou" tag="hor-asg"/>  -->
+        </project>
+
+        <!-- <project name="moo-asg" job="assignment"> -->
+        <!--   <runtag machine="houat" benchmark="moo" tag="asg"/> -->
+        <!-- </project> -->
+
+
+</runscript>

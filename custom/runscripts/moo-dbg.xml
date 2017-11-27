@@ -1,0 +1,74 @@
+<runscript output="custom/output">
+        <machine name="houat" cpu="8xE5520@2.27GHz" memory="24GB"/>
+
+        <!-- Run template -->
+        <config name="seq-generic" template="templates/seq-generic-args.sh"/>
+
+        <!-- Systems config -->
+        <!-- <system name="dispatch" version="1" measures="clasp" config="seq-generic"> -->
+        <!--         <!-\- optionally allows for tagging settings -\-> -->
+        <!--         <setting name="boolean-XY"  cmdline="-\-stats 1 /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding-XY.lp -c horizon=50"/> -->
+        <!--         <!-\- <setting name="vsids"    cmdline="-\\-stats -\\-heu=vsids 1"/> -\-> -->
+        <!-- </system> -->
+
+        <system name="dispatch" version="1" measures="clasp" config="seq-generic">
+          <!-- optionally allows for tagging settings -->
+
+          <!-- Fixed horizon runs -->
+          <setting name="boolean-XY_fh"      tag="fh"  cmdline="      --stats /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding-XY.lp    -c horizon=50"/>
+          <setting name="csp_fh"             tag="fh"  cmdline="--csp --stats /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding.clp      -c horizon=50"/>
+          <setting name="dlp_fh"             tag="fh"  cmdline="      --stats /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding-XY.dlp   -c horizon=50"/>
+
+          <!-- Min horizon runs -->
+          <setting name="boolean"            tag="mh"  cmdline="      --stats /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding.lp       --hor"/>
+          <setting name="boolean-XY"         tag="mh"  cmdline="      --stats /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding-XY.lp    --hor"/>
+          <setting name="csp"                tag="mh"  cmdline="--csp --stats /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding.clp      --hor"/>
+          <setting name="dlp-s"              tag="mh"  cmdline="--dl  --strict --stats             /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding-XY.dlp   --hor"/>
+          <setting name="dlp-sp"             tag="mh"  cmdline="--dl  --strict --propagate --stats /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding-XY.dlp   --hor"/>
+
+          <!-- Horizon computation runs -->
+          <!-- <setting name="boolean-XY_ilp"     tag="hor" cmdline="      -\-stats /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding-XY.ilp"/> -->
+          <setting name="boolean-XY_hor"     tag="hor" cmdline="      --stats /home/phil/dev/benchmark-tool/custom/encodings/moo/encoding-XY.ilp -t 4"/>
+
+          <!-- <setting name="vsids"    cmdline="-\-stats -\-heu=vsids 1"/> -->
+        </system>
+
+        <!-- Job parameters -->
+        <seqjob name="seq-generic" timeout="1800" runs="1" parallel="4"/>
+
+        <!-- Benchmark sets -->
+        <benchmark name="moo-dbg">
+          <folder path="custom/instances/moo/structured/1x2x4/" glob="*[1-2].lp">
+          </folder>
+        </benchmark>
+
+        <!-- <benchmark name="moo-1x2x4"> -->
+        <!--   <folder path="custom/instances/moo-dbg/standard/rectangles/1x2x4/" glob="*.lp"> -->
+        <!--   </folder> -->
+        <!-- </benchmark> -->
+
+        <!-- <benchmark name="moo-2x3x5"> -->
+        <!--   <folder path="custom/instances/moo-dbg/standard/rectangles/2x3x5/" glob="*.lp"> -->
+        <!--   </folder> -->
+        <!-- </benchmark> -->
+
+
+        <!-- Test run projects -->
+        <!-- <project name="moo-dbg-fh" job="seq-generic"> -->
+        <!--   <runtag machine="houat" benchmark="moo-dbg" tag="fh"/> -->
+        <!-- </project> -->
+
+        <!-- <project name="moo-dbg-mh" job="seq-generic"> -->
+        <!--   <runtag machine="houat" benchmark="moo-dbg" tag="mh"/> -->
+        <!-- </project> -->
+
+        <project name="moo-dbg-hor" job="seq-generic">
+          <runtag machine="houat" benchmark="moo-dbg" tag="hor"/>
+        </project>
+
+        <!-- <project name="moo-selection" job="seq-generic"> -->
+        <!--   <runtag machine="houat" benchmark="moo-standard-selection" tag="*all*"/> -->
+        <!--   <!-\- <runtag machine="houat" benchmark="moo-standard-selection" tag="*all*"/> -\-> -->
+        <!--   <!-\- <runtag machine="houat" benchmark="seq-suite" tag="default"/> -\-> -->
+        <!-- </project> -->
+</runscript>

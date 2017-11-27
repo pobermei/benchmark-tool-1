@@ -1,3 +1,8 @@
 /.*
-programs/*
-/test.*
+programs/clingo
+programs/runsolver
+programs/lib
+custom/instances
+custom/encodings
+
+

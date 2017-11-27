@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+   echo "Path argument required!" >&2
+   exit 1
+fi
+
+DST=$1
+
+for f in $(grep -L "SATISFIABLE\|UNKNOWN"  $(find "$DST" -name runsolver.solver))
+do
+    echo "Fixing $f"
+    CALLS=$(grep "Solving..." "$f" | wc -l)
+    CALLS=$(($CALLS+1))
+    echo -e "UNKNOWN\nCalls        : $CALLS" >> "$f"
+done  

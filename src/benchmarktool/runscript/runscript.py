@@ -1,16 +1,20 @@
 """
 This module contains classes that describe a run script.
-It can be used to create scripts to start a benchmark 
-specified by the run script. 
+It can be used to create scripts to start a benchmark
+specified by the run script.
 """
 
 __author__ = "Roland Kaminski"
 
 import benchmarktool.tools as tools
 import os
+import fnmatch
+import logging
 from benchmarktool.tools import Sortable, cmp
 
-# needed to embed measurements functions via exec 
+LOG = logging.getLogger('custom')
+
+# needed to embed measurements functions via exec
 # pylint: disable-msg=W0611
 import benchmarktool.config #@UnusedImport
 # pylint: enable-msg=W0611
@@ -22,7 +26,7 @@ class Machine(Sortable):
     def __init__(self, name, cpu, memory):
         """
         Initializes a machine.
-        
+
         Keyword arguments:
         name   - A name uniquely identifying the machine
         cpu    - Some cpu description
@@ -35,10 +39,10 @@ class Machine(Sortable):
     def toXml(self, out, indent):
         """
         Dump the (pretty-printed) XML-representation of the machine.
-        
+
         Keyword arguments:
         out    - Output stream to write to
-        indent - Amount of indentation 
+        indent - Amount of indentation
         """
         out.write('{1}<machine name="{0.name}" cpu="{0.cpu}" memory="{0.memory}"/>\n'.format(self, indent))
 
@@ -47,31 +51,31 @@ class Machine(Sortable):
         Return a hash values using the name of the machine.
         """
         return hash(self.name)
-        
+
     def __cmp__(self, machine):
         """
         Compare two machines.
         """
         return cmp(self.name, machine.name)
-    
+
 class System(Sortable):
     """
-    Describes a system. This includes a solver description 
-    together with a set of settings.  
+    Describes a system. This includes a solver description
+    together with a set of settings.
     """
     def __init__(self, name, version, measures, order):
         """
-        Initializes a system. Name and version of the system 
-        are used to uniquely identify a system.   
-        
+        Initializes a system. Name and version of the system
+        are used to uniquely identify a system.
+
         Keyword arguments:
         name     - The name of the system
         version  - The version of the system
         measures - A string specifying the measurement function
                    This must be a function given in the config
         order    - An integer used to order different system.
-                   This integer should denote the occurrence in 
-                   the run specification.      
+                   This integer should denote the occurrence in
+                   the run specification.
         """
         self.name     = name
         self.version  = version
@@ -79,52 +83,52 @@ class System(Sortable):
         self.order    = order
         self.settings = {}
         self.config   = None
-         
+
     def addSetting(self, setting):
         """
         Adds a given setting to the system.
         """
         setting.system = self
         self.settings[setting.name] = setting
-        
+
     def toXml(self, out, indent, settings = None):
         """
         Dump the (pretty-printed) XML-representation of the system.
-        
+
         Keyword arguments:
         out     - Output stream to write to
         indent  - Amount of indentation
         setting - If None all the settings of the system are printed,
-                  otherwise the given settings are printed  
+                  otherwise the given settings are printed
         """
         out.write('{1}<system name="{0.name}" version="{0.version}" measures="{0.measures}" config="{0.config.name}">\n'.format(self, indent))
         if settings == None: settings = self.settings
         for setting in sorted(settings, key=lambda s: s.order):
             setting.toXml(out, indent + "\t")
         out.write('{0}</system>\n'.format(indent))
-        
+
     def __hash__(self):
         """
-        Calculates a hash value for the system using its name and version. 
+        Calculates a hash value for the system using its name and version.
         """
         return hash((self.name, self.version))
 
     def __cmp__(self, system):
         """
-        Compares two systems using name and version. 
+        Compares two systems using name and version.
         """
         return cmp((self.name, self.version), (system.name, system.version))
 
 class Setting(Sortable):
     """
     Describes a setting for a system. This are command line options
-    that can be passed to the system. Additionally, settings can be tagged. 
+    that can be passed to the system. Additionally, settings can be tagged.
     """
     def __init__(self, name, cmdline, tag, order, procs, ppn, pbstemplate, attr):
         """
         Initializes a system.
-        
-        name        - A name uniquely identifying a setting. 
+
+        name        - A name uniquely identifying a setting.
                       (In the scope of a system)
         cmdline     - A string of command line options
         tag         - A set of tags
@@ -134,7 +138,7 @@ class Setting(Sortable):
         procs       - Number of processes used by the solver (pbs only)
         ppn         - Processes per node (pbs only)
         pbstemplate - Path to pbs-template file (pbs only, related to mpi-version)
-        attr        - A dictionary of additional optional attributes.  
+        attr        - A dictionary of additional optional attributes.
         """
         self.name        = name
         self.cmdline     = cmdline
@@ -142,13 +146,13 @@ class Setting(Sortable):
         self.order       = order
         self.procs       = procs
         self.ppn         = ppn
-        self.pbstemplate = pbstemplate 
+        self.pbstemplate = pbstemplate
         self.attr        = attr
 
     def toXml(self, out, indent):
         """
         Dump a (pretty-printed) XML-representation of the setting.
-        
+
         Keyword arguments:
         out     - Output stream to write to
         indent  - Amount of indentation
@@ -167,25 +171,25 @@ class Setting(Sortable):
 
     def __hash__(self):
         """
-        Calculates a hash value for the setting using its name. 
+        Calculates a hash value for the setting using its name.
         """
         return hash(self.name)
 
     def __cmp__(self, setting):
         """
-        Compares two settings using their names. 
+        Compares two settings using their names.
         """
         return cmp(self.name, setting.name)
 
-        
+
 class Job(Sortable):
     """
-    Base class for all jobs. 
+    Base class for all jobs.
     """
     def __init__(self, name, timeout, runs, attr):
         """
         Initializes a job.
-        
+
         Keyword arguments:
         name    - A unique name for a job
         timeout - A timeout in seconds for individual benchmark runs
@@ -200,34 +204,34 @@ class Job(Sortable):
     def _toXml(self, out, indent, xmltag, extra):
         """
         Helper function to dump a (pretty-printed) XML-representation of a job.
-        
+
         Keyword arguments:
         out     - Output stream to write to
         indent  - Amount of indentation
         xmltag  - Tag name for the job
-        extra   - Additional arguments for the job 
+        extra   - Additional arguments for the job
         """
         out.write('{1}<{2} name="{0.name}" timeout="{0.timeout}" runs="{0.runs}"{3}'.format(self, indent, xmltag, extra))
         for key, val in self.attr.items():
             out.write(' {0}="{1}"'.format(key, val))
         out.write('/>\n')
-        
+
     def __hash__(self):
         """
-        Calculates a hash value for the job using its name. 
+        Calculates a hash value for the job using its name.
         """
         return hash(self.name)
-    
+
     def __cmp__(self, job):
         """
-        Compares two jobs using their names. 
+        Compares two jobs using their names.
         """
         return cmp(job.name, job.name)
 
 class Run(Sortable):
     """
     Base class for all runs.
-    
+
     Class members:
     path - Path that holds the target location for start scripts
     root - directory relative to the location of the run's path.
@@ -235,18 +239,18 @@ class Run(Sortable):
     def __init__(self, path):
         """
         Initializes a run.
-        
+
         Keyword arguments:
-        path - A path that holds the location 
-               where the individual start scripts for the job shall be generated 
+        path - A path that holds the location
+               where the individual start scripts for the job shall be generated
         """
         self.path = path
-        self.root = os.path.relpath(".", self.path) 
-    
+        self.root = os.path.relpath(".", self.path)
+
 class SeqRun(Run):
     """
     Describes a sequential run.
-    
+
     Class members:
     run      - The number of the run
     job      - A reference to the job description
@@ -260,9 +264,9 @@ class SeqRun(Run):
     def __init__(self, path, run, job, runspec, instance):
         """
         Initializes a sequential run.
-        
+
         Keyword arguments:
-        path     - A path that holds the location 
+        path     - A path that holds the location
                    where the individual start scripts for the job shall be generated
         run      - The number of the run
         job      - A reference to the job description
@@ -281,38 +285,38 @@ class SeqRun(Run):
 
 class ScriptGen:
     """
-    A class providing basic functionality to generate 
+    A class providing basic functionality to generate
     start scripts for arbitrary jobs and evaluation of results.
     """
     def __init__(self, job):
         """
         Initializes the script generator.
-        
+
         Keyword arguments:
         seqJob - A reference to the associated job.
         """
         self.skip       = False
         self.job        = job
         self.startfiles = []
-    
+
     def setSkip(self, skip):
         self.skip = skip
-    
+
     def _path(self, runspec, instance, run):
         """
         Returns the relative path to the start script location.
-        
+
         Keyword arguments:
         runspec  - The run specification for the start script
         instance - The benchmark instance for the start script
         run      - The number of the run for the start script
         """
-        return os.path.join(runspec.path(), instance.classname.name, instance.instance, "run%d" % run)    
-    
+        return os.path.join(runspec.path(), instance.classname.name, instance.instance, "run%d" % run)
+
     def addToScript(self, runspec, instance):
         """
         Creates a new start script for the given instance.
-        
+
         Keyword arguments:
         runspec  - The run specification for the start script
         instance - The benchmark instance for the start script
@@ -335,7 +339,7 @@ class ScriptGen:
     def evalResults(self, out, indent, runspec, instance):
         """
         Parses the results of a given benchmark instance and outputs them as XML.
-        
+
         Keyword arguments:
         out     - Output stream to write to
         indent  - Amount of indentation
@@ -345,10 +349,17 @@ class ScriptGen:
         for run in range(1, self.job.runs + 1):
             out.write('{0}<run number="{1}">\n'.format(indent, run))
             result = getattr(benchmarktool.config, runspec.system.measures)(self._path(runspec, instance, run), runspec, instance)
+            if LOG.getEffectiveLevel() is logging.DEBUG:
+                for e1, e2, e3 in result:
+                    if e1 is 'calls':
+                        LOG.debug("Instance " + str(instance.location) +
+                                  str(instance.classname.name) +
+                                  '/' + str(instance.instance) + " has #calls: " + str(e3) +
+                                  " and hence horizon " +  str(e3 -1))
             for key, valtype, val in sorted(result):
                 out.write('{0}<measure name="{1}" type="{2}" val="{3}"/>\n'.format(indent + "\t", key, valtype, val))
             out.write('{0}</run>\n'.format(indent))
-            
+
 class SeqScriptGen(ScriptGen):
     """
     A class that generates and evaluates start scripts for sequential runs.
@@ -356,17 +367,17 @@ class SeqScriptGen(ScriptGen):
     def __init__(self, seqJob):
         """
         Initializes the script generator.
-        
+
         Keyword arguments:
         seqJob - A reference to the associated sequential job.
         """
         ScriptGen.__init__(self, seqJob)
-    
+
     def genStartScript(self, path):
         """
-        Generates a start script that can be used to start all scripts 
+        Generates a start script that can be used to start all scripts
         generated using addToScript().
-        
+
         Keyword arguments:
         path - The target location for the script
         """
@@ -404,7 +415,7 @@ class Main:
         while len(self.cores) < {1}:
             self.cores.add(c)
             c += 1
-    
+
     def finish(self, thread):
         self.finished.acquire()
         self.running.remove(thread)
@@ -412,7 +423,7 @@ class Main:
             self.cores.add(thread.core)
         self.finished.notify()
         self.finished.release()
-   
+
     def start(self, cmd):
         core     = 0
         with self.coreLock:
@@ -422,7 +433,7 @@ class Main:
         self.running.add(thread)
         print("({{0}}/{{1}}/{{2}}/{{4}}) {{3}}".format(len(self.running), self.started, self.total, cmd, core))
         thread.start()
-    
+
     def run(self, queue):
         signal.signal(signal.SIGTERM, self.exit)
         signal.signal(signal.SIGINT, self.exit)
@@ -455,7 +466,7 @@ class Run(threading.Thread):
         self.main = main
         self.core = core
         self.proc = None
-    
+
     def run(self):
         path, script = os.path.split(self.cmd)
         self.proc = subprocess.Popen(["bash", script, str(self.core)], cwd=path)
@@ -471,29 +482,29 @@ def gui():
             scrollx = Tkinter.Scrollbar(frame, orient=Tkinter.HORIZONTAL)
             scrolly = Tkinter.Scrollbar(frame)
             list    = Tkinter.Listbox(frame, selectmode=Tkinter.MULTIPLE)
-            
+
             for script in queue:
                 list.insert(Tkinter.END, script)
-            
+
             scrolly.config(command=list.yview)
             scrollx.config(command=list.xview)
             list.config(yscrollcommand=scrolly.set)
             list.config(xscrollcommand=scrollx.set)
-                
+
             scrolly.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
             scrollx.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
             list.pack(fill=Tkinter.BOTH, expand=1)
-            
+
             button = Tkinter.Button(root, text='Run', command=self.pressed)
-            
+
             frame.pack(fill=Tkinter.BOTH, expand=1)
             button.pack(side=Tkinter.BOTTOM, fill=Tkinter.X)
 
             self.root  = root
             self.list  = list
             self.run   = False
-            self.queue = [] 
-        
+            self.queue = []
+
         def pressed(self):
             sel = self.list.curselection()
             for index in sel:
@@ -512,11 +523,11 @@ def gui():
 if __name__ == '__main__':
     usage  = "usage: %prog [options] <runscript>"
     parser = optparse.OptionParser(usage=usage)
-    parser.add_option("-g", "--gui", action="store_true", dest="gui", default=False, help="start gui to selectively start benchmarks") 
+    parser.add_option("-g", "--gui", action="store_true", dest="gui", default=False, help="start gui to selectively start benchmarks")
 
     opts, args = parser.parse_args(sys.argv[1:])
     if len(args) > 0: parser.error("no arguments expected")
-    
+
     os.chdir(os.path.dirname(sys.argv[0]))
     if opts.gui: gui()
 
@@ -539,7 +550,7 @@ class PbsScriptGen(ScriptGen):
             self.time         = None
             self.startscripts = None
             self.next()
-        
+
         def write(self):
             if self.num > 0:
                 self.num = 0
@@ -547,31 +558,31 @@ class PbsScriptGen(ScriptGen):
                 script   = os.path.join(self.path, "start{0:04}.pbs".format(len(self.queue)))
                 open(script, "w").write(template.format(walltime=tools.pbsTime(self.runspec[3]), nodes=self.runspec[1], ppn=self.runspec[0], jobs=self.startscripts, cpt=self.runspec[4], partition=self.runspec[5]))
                 self.queue.append(script)
-                    
+
         def next(self):
             self.write()
             self.startscripts = ""
             self.num          = 0
             self.time         = 0
-            
+
         def append(self, startfile):
             self.num          += 1
             self.startscripts += startfile + "\n"
-            
+
     def __init__(self, seqJob):
         """
         Initializes the script generator.
-        
+
         Keyword arguments:
         seqJob - A reference to the associated sequential job.
         """
         ScriptGen.__init__(self, seqJob)
-    
+
     def genStartScript(self, path):
         """
-        Generates a start script that can be used to start all scripts 
+        Generates a start script that can be used to start all scripts
         generated using addToScript().
-        
+
         Keyword arguments:
         path - The target location for the script
         """
@@ -588,7 +599,7 @@ class PbsScriptGen(ScriptGen):
                 pbsScript = PbsScriptGen.PbsScript(pbsKey, path, queue)
                 pbsScripts[pbsKey] = pbsScript
             else: pbsScript = pbsScripts[pbsKey]
-            
+
             if self.job.script_mode == "multi":
                 if pbsScript.num > 0: pbsScript.next()
                 pbsScript.append(jobScript)
@@ -611,8 +622,8 @@ class SeqJob(Job):
     """
     def __init__(self, name, timeout, runs, parallel, attr):
         """
-        Initializes a sequential job description.  
-        
+        Initializes a sequential job description.
+
         Keyword arguments:
         name     - A unique name for a job
         timeout  - A timeout in seconds for individual benchmark runs
@@ -622,18 +633,18 @@ class SeqJob(Job):
         """
         Job.__init__(self, name, timeout, runs, attr)
         self.parallel = parallel
-    
+
     def scriptGen(self):
         """
         Returns a class that can generate start scripts and evaluate benchmark results.
-        (see SeqScriptGen) 
+        (see SeqScriptGen)
         """
-        return SeqScriptGen(self) 
+        return SeqScriptGen(self)
 
     def toXml(self, out, indent):
         """
         Dump a (pretty-printed) XML-representation of the sequential job.
-        
+
         Keyword arguments:
         out     - Output stream to write to
         indent  - Amount of indentation
@@ -641,15 +652,15 @@ class SeqJob(Job):
         extra = ' parallel="{0.parallel}"'.format(self)
         Job._toXml(self, out, indent, "seqjob", extra)
 
-           
+
 class PbsJob(Job):
     """
     Describes a pbs job.
     """
     def __init__(self, name, timeout, runs, script_mode, walltime, cpt, partition, attr):
         """
-        Initializes a parallel job description.  
-        
+        Initializes a parallel job description.
+
         Keyword arguments:
         name        - A unique name for a job
         timeout     - A timeout in seconds for individual benchmark runs
@@ -669,7 +680,7 @@ class PbsJob(Job):
     def toXml(self, out, indent):
         """
         Dump a (pretty-printed) XML-representation of the parallel job.
-        
+
         Keyword arguments:
         out     - Output stream to write to
         indent  - Amount of indentation
@@ -680,14 +691,14 @@ class PbsJob(Job):
     def scriptGen(self):
         """
         Returns a class that can generate start scripts and evaluate benchmark results.
-        (see SeqScriptGen) 
+        (see SeqScriptGen)
         """
-        return PbsScriptGen(self) 
+        return PbsScriptGen(self)
 
 class Config(Sortable):
     """
-    Describes a configuration. Currently, this only specifies a template 
-    that is used for start script generation. 
+    Describes a configuration. Currently, this only specifies a template
+    that is used for start script generation.
     """
     def __init__(self, name, template):
         """
@@ -701,7 +712,7 @@ class Config(Sortable):
     def toXml(self, out, indent):
         """
         Dump a (pretty-printed) XML-representation of the configuration.
-        
+
         Keyword arguments:
         out     - Output stream to write to
         indent  - Amount of indentation
@@ -710,10 +721,10 @@ class Config(Sortable):
 
     def __hash__(self):
         """
-        Calculates a hash value for the configuration using its name. 
+        Calculates a hash value for the configuration using its name.
         """
         return hash(self.name)
-    
+
     def __cmp__(self, config):
         """
         Compares two configurations using their names.
@@ -732,25 +743,25 @@ class Benchmark(Sortable):
         def __init__(self, name):
             """
             Initializes a benchmark class.
-            
+
             Keyword arguments:
             name - A name uniquely identifying a benchmark class (per benchmark).
             """
             self.name = name
-            self.id   = None 
+            self.id   = None
 
         def __cmp__(self, other):
             """
             Compares two benchmark classes using their names.
             """
-            return cmp(self.name, other.name) 
+            return cmp(self.name, other.name)
 
         def __hash__(self):
             """
-            Calculates a hash value for the benchmark class using its name. 
+            Calculates a hash value for the benchmark class using its name.
             """
             return hash(self.name)
-            
+
     class Instance(Sortable):
         """
         Describes a benchmark instance.
@@ -758,11 +769,11 @@ class Benchmark(Sortable):
         def __init__(self, location, classname, instance):
             """
             Initializes a benchmark instance. The instance name uniquely identifies
-            an instance (per benchmark class). 
-            
+            an instance (per benchmark class).
+
             Keyword arguments:
             location  - The location of the benchmark instance.
-            classname - The class name of the instance 
+            classname - The class name of the instance
             instance  - The name of the instance
             """
             self.location  = location
@@ -773,7 +784,7 @@ class Benchmark(Sortable):
         def toXml(self, out, indent):
             """
             Dump a (pretty-printed) XML-representation of the configuration.
-            
+
             Keyword arguments:
             out     - Output stream to write to
             indent  - Amount of indentation
@@ -784,7 +795,7 @@ class Benchmark(Sortable):
             """
             Compares tow instances using the instance name.
             """
-            return cmp(self.instance, instance.instance) 
+            return cmp(self.instance, instance.instance)
 
         def __hash__(self):
             """
@@ -794,52 +805,57 @@ class Benchmark(Sortable):
 
         def path(self):
             """
-            Returns the location of the instance by concatenating 
+            Returns the location of the instance by concatenating
             location, class name and instance name.
             """
             return os.path.join(self.location, self.classname.name, self.instance)
-        
+
     class Folder:
         """
         Describes a folder that should recursively be scanned for benchmarks.
         """
-        def __init__(self, path):
+        def __init__(self, path, glob=None):
             """
             Initializes a benchmark folder.
-            
+
             Keyword arguments:
-            path - The location of the folder
+            path     - The location of the folder
+            glob     - An optional glob pattern all instance files have to match
             """
-            self.path     = path
+            self.path = path
             self.prefixes = set()
-            
+            self.glob = glob or '*'
+
         def addIgnore(self, prefix):
             """
-            Can be used to ignore certain sub-folders or instances 
+            Can be used to ignore certain sub-folders or instances
             by giving a path prefix that shall be ignored.
-            
+
             Keyword arguments:
-            prefix - The prefix to be ignored 
+            prefix - The prefix to be ignored
             """
             self.prefixes.add(os.path.normpath(prefix))
-        
+
         def _skip(self, root, path):
             """
             Returns whether a given path should be ignored.
-            
+
             Keyword arguments:
             root - The root path
             path - Some path relative to the root path
             """
-            if path == ".svn": 
+            if path == ".svn":
+                return True
+            fullpath = os.path.abspath(os.path.join(self.path, root, path))
+            if os.path.isfile(fullpath) and not fnmatch.fnmatch(fullpath, self.glob):
                 return True
             path = os.path.normpath(os.path.join(root, path))
             return path in self.prefixes
-            
+
         def init(self, benchmark):
             """
             Recursively scans the folder and adds all instances found to the given benchmark.
-            
+
             Keyword arguments:
             benchmark - The benchmark to be populated.
             """
@@ -852,7 +868,7 @@ class Benchmark(Sortable):
                 dirs[:] = sub
                 for filename in files:
                     if self._skip(relroot, filename): continue
-                    benchmark.addInstance(self.path, relroot, filename) 
+                    benchmark.addInstance(self.path, relroot, filename)
 
     class Files:
         """
@@ -861,26 +877,26 @@ class Benchmark(Sortable):
         def __init__(self, path):
             """
             Initializes to the empty set of files.
-            
+
             Keyword arguments:
             path - Root path, all file paths are relative to this path
             """
             self.path  = path
             self.files = set()
-            
+
         def addFile(self, path):
             """
             Adds a file to the set of files.
-            
+
             Keyword arguments:
             path - Location of the file
             """
             self.files.add(os.path.normpath(path))
-        
+
         def init(self, benchmark):
             """
             Adds a files in the set to the given benchmark (if they exist).
-            
+
             Keyword arguments:
             benchmark - The benchmark to be populated
             """
@@ -888,46 +904,46 @@ class Benchmark(Sortable):
                 if os.path.exists(os.path.join(self.path, path)):
                     relroot, filename = os.path.split(path)
                     benchmark.addInstance(self.path, relroot, filename)
-                
+
     def __init__(self, name):
         """
         Initializes an empty benchmark set.
-        
+
         Keyword arguments:
         name - The name of the benchmark set
-        """        
+        """
         self.name        = name
         self.elements    = []
         self.instances   = {}
         self.initialized = False
-        
+
     def addElement(self, element):
         """
         Adds elements to the benchmark, e.g, files or folders.
-        
+
         Keyword arguments:
         element - The element to add
         """
         self.elements.append(element)
-    
+
     def addInstance(self, root, relroot, filename):
         """
         Adds an instance to the benchmark set. (This function
         is called during initialization by the benchmark elements)
-        
+
         Keyword arguments:
         root     - The root folder of the instance
         relroot  - The folder relative to the root folder
         filename - The filename of the instance
         """
         classname = Benchmark.Class(relroot)
-        if not classname in self.instances: 
+        if not classname in self.instances:
             self.instances[classname] = set()
         self.instances[classname].add(Benchmark.Instance(root, classname, filename))
-    
+
     def init(self):
         """
-        Populates the benchmark set with instances specified by the 
+        Populates the benchmark set with instances specified by the
         benchmark elements added.
         """
         if not self.initialized:
@@ -941,12 +957,12 @@ class Benchmark(Sortable):
                     instance.id = instanceid
                     instanceid += 1
             self.initialized = True
-            
+
 
     def toXml(self, out, indent):
         """
         Dump the (pretty-printed) XML-representation of the benchmark set.
-        
+
         Keyword arguments:
         out    - Output stream to write to
         indent - Amount of indentation
@@ -960,7 +976,7 @@ class Benchmark(Sortable):
                 instance.toXml(out, indent + "\t\t")
             out.write('{0}</class>\n'.format(indent + "\t"))
         out.write('{0}</benchmark>\n'.format(indent))
-        
+
     def __hash__(self):
         """
         Return a hash values using the name of the machine.
@@ -975,13 +991,13 @@ class Benchmark(Sortable):
 
 class Runspec(Sortable):
     """
-    Describes a run specification. This specifies system, settings, machine 
-    to run a benchmark with.  
-    """    
+    Describes a run specification. This specifies system, settings, machine
+    to run a benchmark with.
+    """
     def __init__(self, machine, setting, benchmark):
         """
         Initializes a run specification.
-        
+
         Keyword arguments:
         machine   - The machine to run on
         setting   - The setting to run with (includes system)
@@ -992,21 +1008,21 @@ class Runspec(Sortable):
         self.system    = setting.system
         self.benchmark = benchmark
         self.project   = None
-    
+
     def path(self):
         """
-        Returns an output path under which start scripts 
-        and benchmark results are stored.  
+        Returns an output path under which start scripts
+        and benchmark results are stored.
         """
         name = self.setting.system.name + "-" + self.setting.system.version + "-" + self.setting.name
         return os.path.join(self.project.path(), self.machine.name, "results", self.benchmark.name, name)
-    
+
     def genScripts(self, scriptGen):
         """
         Generates start scripts needed to start the benchmark described
-        by this run specification. This will simply add all instances 
-        to the given script generator. 
-        
+        by this run specification. This will simply add all instances
+        to the given script generator.
+
         Keyword arguments:
         scriptGen - A generator that is responsible for the start script generation
         """
@@ -1014,22 +1030,22 @@ class Runspec(Sortable):
         for instances in self.benchmark.instances.values():
             for instance in instances:
                 scriptGen.addToScript(self, instance)
-    
+
     def __cmp__(self, runspec):
         """
         Compares two run specifications.
         """
-        return cmp((self.machine, self.system, self.setting, self.benchmark), (runspec.machine, runspec.system, runspec.setting, runspec.benchmark)) 
+        return cmp((self.machine, self.system, self.setting, self.benchmark), (runspec.machine, runspec.system, runspec.setting, runspec.benchmark))
 
 class Project(Sortable):
     """
     Describes a benchmark project, i.e., a set of run specifications
-    that belong together. 
+    that belong together.
     """
     def __init__(self, name):
         """
         Initializes an empty project.
-        
+
         Keyword arguments:
         name - The name of the project
         """
@@ -1042,23 +1058,23 @@ class Project(Sortable):
         """
         Adds a run tag to the project, i.e., a set of run specifications
         identified by certain tags.
-        
+
         Keyword arguments:
         machine   - The machine to run on
         benchmark - The benchmark set to evaluate
-        tag       - The tags of systems+settings to run 
+        tag       - The tags of systems+settings to run
         """
         disj = TagDisj(tag)
         for system in self.runscript.systems.values():
             for setting in system.settings.values():
                 if disj.match(setting.tag):
                     self.addRunspec(machine, system.name, system.version, setting.name, benchmark)
-        
+
     def addRunspec(self, machine, system, version, setting, benchmark):
         """
         Adds a run specification, described by machine, system+settings, and benchmark set,
         to the project.
-        
+
         Keyword arguments:
         machine   - The machine to run on
         system    - The system to evaluate
@@ -1067,19 +1083,19 @@ class Project(Sortable):
         benchmark - The benchmark set to evaluate
         """
         runspec = Runspec(self.runscript.machines[machine],
-                          self.runscript.systems[(system,version)].settings[setting], 
+                          self.runscript.systems[(system,version)].settings[setting],
                           self.runscript.benchmarks[benchmark])
         runspec.project = self
         if not machine in self.runspecs: self.runspecs[machine] = []
         self.runspecs[machine].append(runspec)
-    
+
     def path(self):
         """
-        Returns an output path under which start scripts 
+        Returns an output path under which start scripts
         and benchmark results are stored for this project.
         """
         return os.path.join(self.runscript.path(), self.name)
-    
+
     def genScripts(self, skip):
         """
         Generates start scripts for this project.
@@ -1090,7 +1106,7 @@ class Project(Sortable):
             for runspec in runspecs:
                 runspec.genScripts(scriptGen)
             scriptGen.genStartScript(os.path.join(self.path(), machine))
-    
+
     def __hash__(self):
         """
         Return a hash values using the name of the project.
@@ -1106,41 +1122,41 @@ class Project(Sortable):
 class Runscript:
     """
     Describes a run script, i.e., everything that is needed
-    to start and evaluate a set of benchmarks.   
+    to start and evaluate a set of benchmarks.
     """
     def __init__(self, output):
         """
         Initializes an empty run script.
-        
+
         Keyword arguments:
-        output - The output folder to store start scripts and result files 
+        output - The output folder to store start scripts and result files
         """
         self.output     = output
         self.jobs       = {}
         self.projects   = {}
         self.machines   = {}
         self.systems    = {}
-        self.configs    = {} 
+        self.configs    = {}
         self.benchmarks = {}
-    
+
     def addMachine(self, machine):
         """
         Adds a given machine to the run script.
         """
         self.machines[machine.name] = machine
-    
+
     def addSystem(self, system, config):
         """
         Adds a given system to the run script.
         Additionally, each system will be associated with a config.
-        
+
         Keyword arguments:
         system - The system to add
         config - The name of the config of the system
         """
         system.config = self.configs[config]
         self.systems[(system.name, system.version)] = system
-        
+
     def addConfig(self, config):
         """
         Adds a configuration to the run script.
@@ -1149,57 +1165,57 @@ class Runscript:
 
     def addBenchmark(self, benchmark):
         """
-        Adds a benchmark to the run script. 
+        Adds a benchmark to the run script.
         """
         self.benchmarks[benchmark.name] = benchmark
-    
+
     def addJob(self, job):
         """
         Adds a job to the runscript.
         """
         self.jobs[job.name] = job
-    
+
     def addProject(self, project, job):
         """
         Adds a project to therun script.
         Additionally, the project ill be associated with a job.
-        
+
         Keyword arguments:
         project - The project to add
         job     - The name of the job of the project
         """
         project.runscript = self
-        project.job       = self.jobs[job] 
+        project.job       = self.jobs[job]
         self.projects[project.name] = project
 
     def genScripts(self, skip):
         """
         Generates the start scripts for all benchmarks described by
-        this run script. 
+        this run script.
         """
         for project in self.projects.values():
             project.genScripts(skip)
-    
+
     def path(self):
         """
         Returns the output path of this run script.
         """
         return self.output
-    
+
     def evalResults(self, out):
         """
         Evaluates and prints the results of all benchmarks described
         by this run script. (Start scripts have to be run first.)
-        
+
         Keyword arguments:
-        out - Output stream for xml output 
+        out - Output stream for xml output
         """
         machines   = set()
         jobs       = set()
         configs    = set()
         systems    = {}
-        benchmarks = set() 
-        
+        benchmarks = set()
+
         for project in self.projects.values():
             jobs.add(project.job)
             for runspecs in project.runspecs.values():
@@ -1209,9 +1225,9 @@ class Runscript:
                     if not runspec.system in systems: systems[runspec.system] = []
                     systems[runspec.system].append(runspec.setting)
                     benchmarks.add(runspec.benchmark)
-        
+
         out.write('<result>\n')
-        
+
         for machine in sorted(machines):
             machine.toXml(out, "\t")
         for config in sorted(configs):
@@ -1222,7 +1238,7 @@ class Runscript:
             job.toXml(out, "\t")
         for benchmark in sorted(benchmarks):
             benchmark.toXml(out, "\t")
-        
+
         for project in self.projects.values():
             out.write('\t<project name="{0.name}" job="{0.job.name}">\n'.format(project))
             jobGen = project.job.scriptGen()
@@ -1241,7 +1257,7 @@ class Runscript:
                     out.write('\t\t</runspec>\n')
             out.write('\t</project>\n')
         out.write('</result>\n')
-         
+
 class TagDisj:
     """Represents tags in form of a disjunctive normal form."""
     ALL = 1
@@ -1251,11 +1267,11 @@ class TagDisj:
         Spaces between tags are interpreted as conjunctions and |
         is interpreted as disjunction. The special value "*all*"
         matches everything.
-        
+
         Keyword arguments:
-        tag -- a string representing a disjunctive normal form of tags   
-        """        
-        if tag == "*all*": 
+        tag -- a string representing a disjunctive normal form of tags
+        """
+        if tag == "*all*":
             self.tag = self.ALL
         else:
             self.tag = []
@@ -1263,18 +1279,17 @@ class TagDisj:
             for tagConj in tagDisj:
                 tagList = tagConj.split(None)
                 self.tag.append(frozenset(tagList))
-                
+
     def match(self, tag):
         """
         Checks whether a given set of tags is subsumed.
-        
+
         Keyword arguments:
         tag - a set of tags
-        """  
+        """
         if self.tag == self.ALL:
             return True
         for conj in self.tag:
             if conj.issubset(tag):
                 return True
         return False
-    
